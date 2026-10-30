@@ -1,8 +1,8 @@
-"""Fetch Public Mutual "Public" series unit trust prices and build data/funds.js.
+"""Fetch Public Mutual "Public" series unit trust and PRS prices into data/funds.js.
 
 Pulls the latest NAVs, EPF eligibility and fund attributes from the endpoints
-behind https://www.publicmutual.com.my/Fund-Price-UT and /fund-explorer-list,
-plus month-end NAV history for the chart and return calculations.
+behind https://www.publicmutual.com.my/Fund-Price-UT, /fund-price-prs and
+/fund-explorer-list, plus month-end NAV history for the chart and return calculations.
 
 Usage:  python scripts/fetch_data.py [--years 5]
 Stdlib only, so it runs as-is in GitHub Actions.
@@ -24,6 +24,9 @@ OUT = ROOT / "data" / "funds.js"
 
 CATEGORY = {
     "EQ": "Equity",
+    "CC": "PRS Conservative",
+    "CM": "PRS Moderate",
+    "CG": "PRS Growth",
     "BA": "Mixed Asset / Balanced",
     "BF": "Bond / Fixed Income",
     "MM": "Money Market",
@@ -92,9 +95,9 @@ class Client:
         body = self._get(path, {"RequestVerificationToken": self.token(page), "Content-Type": "application/json"})
         return json.loads(body).get("ResultData") or []
 
-    def prices(self, d=None):
+    def prices(self, scheme, d=None):
         q = d.strftime("%d-%m-%Y") if d else ""
-        return self.api("/Fund-Price-UT", f"/FundPriceUT/GetAllUTFundPriceByDate?date={q}")
+        return self.api(scheme["page"], f"{scheme['endpoint']}?date={q}")
 
     def explorer(self):
         return self.api("/fund-explorer-list", "/FundExplorerList/GetFundExplorerData?date=")
@@ -102,6 +105,22 @@ class Client:
 
 def is_public_series(f):
     return not f["IsPbFund"] and not f["IsESeriesFund"]
+
+
+SCHEMES = {
+    "ut": {
+        "label": "Unit trust",
+        "page": "/Fund-Price-UT",
+        "endpoint": "/FundPriceUT/GetAllUTFundPriceByDate",
+        "keep": is_public_series,
+    },
+    "prs": {
+        "label": "PRS",
+        "page": "/fund-price-prs",
+        "endpoint": "/FundPricePRS/GetAllPrsFundPriceByDate",
+        "keep": lambda f: not f["IsPbFund"],
+    },
+}
 
 
 def match(rules, name, default):
@@ -129,21 +148,14 @@ def shift_months(d, n):
     return date(y, m, min(d.day, calendar.monthrange(y, m)[1]))
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--years", type=int, default=5)
-    args = ap.parse_args()
-
-    c = Client()
-    print("Fetching latest prices...")
-    latest_rows = [f for f in c.prices() if is_public_series(f)]
+def collect(c, scheme, explorer, years):
+    keep = scheme["keep"]
+    latest_rows = [f for f in c.prices(scheme) if keep(f)]
     latest = datetime.fromisoformat(latest_rows[0]["Date"]).date()
-    print(f"  {len(latest_rows)} Public series funds, price date {latest}")
-
-    explorer = {f["FundAbbr"]: f for f in c.explorer()}
+    print(f"{scheme['label']}: {len(latest_rows)} funds, price date {latest}")
 
     # Snapshot dates: month-ends for the chart, plus exact anchors for returns.
-    targets = set(month_ends(latest, args.years))
+    targets = set(month_ends(latest, years))
     for n in (1, 3, 6, 12, 36, 60):
         targets.add(shift_months(latest, n))
     targets.add(date(latest.year - 1, 12, 31))
@@ -156,14 +168,14 @@ def main():
         # Walk back over weekends / holidays. Foreign funds skip their own
         # market holidays, so keep going a few days to fill those gaps too.
         for _ in range(12):
-            rows = c.prices(d)
+            rows = c.prices(scheme, d)
             time.sleep(0.2)
             d -= timedelta(days=1)
             if not rows:
                 continue
             actual = actual or datetime.fromisoformat(rows[0]["Date"]).date().isoformat()
             for f in rows:
-                if is_public_series(f) and f["FundAbbr"] not in navs:
+                if keep(f) and f["FundAbbr"] not in navs:
                     navs[f["FundAbbr"]] = f["Nav"]
             if wanted <= navs.keys() or (t - d).days > 7:
                 break
@@ -207,16 +219,30 @@ def main():
             "history": [history[d].get(abbr) for d in dates],
         })
 
-    payload = {
-        "generated": datetime.now().isoformat(timespec="seconds"),
+    return {
+        "label": scheme["label"],
         "priceDate": latest.isoformat(),
-        "source": BASE + "/Fund-Price-UT",
+        "source": BASE + scheme["page"],
         "dates": dates,
         "funds": funds,
     }
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--years", type=int, default=5)
+    args = ap.parse_args()
+
+    c = Client()
+    explorer = {f["FundAbbr"]: f for f in c.explorer()}
+    payload = {
+        "generated": datetime.now().isoformat(timespec="seconds"),
+        "schemes": {k: collect(c, s, explorer, args.years) for k, s in SCHEMES.items()},
+    }
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text("window.FUND_DATA = " + json.dumps(payload, separators=(",", ":")) + ";\n", encoding="utf-8")
-    print(f"Wrote {OUT} ({len(funds)} funds, {len(dates)} dates)")
+    counts = ", ".join(f"{v['label']} {len(v['funds'])}" for v in payload["schemes"].values())
+    print(f"Wrote {OUT} ({counts})")
 
 
 if __name__ == "__main__":

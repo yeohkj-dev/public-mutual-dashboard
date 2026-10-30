@@ -16,7 +16,7 @@
   --axis: #c3c2b7;
   --border: rgba(11,11,11,0.10);
   --wash: rgba(11,11,11,0.04);
-  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #c98500;
   --pos: #2a78d6; --neg: #e34948;
   --up-text: #006300; --down-text: #c42e2e;
   --epf: #1c5cab; --epf-bg: #cde2fb;
@@ -27,7 +27,7 @@
     color-scheme: dark;
     --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
     --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10); --wash: rgba(255,255,255,0.05);
-    --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
     --pos: #3987e5; --neg: #e66767; --up-text: #0ca30c; --down-text: #ef7a7a;
     --epf: #9ec5f4; --epf-bg: #184f95; --non: #c3c2b7; --non-bg: #2c2c2a;
   }
@@ -36,7 +36,7 @@
   color-scheme: dark;
   --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
   --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10); --wash: rgba(255,255,255,0.05);
-  --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
   --pos: #3987e5; --neg: #e66767; --up-text: #0ca30c; --down-text: #ef7a7a;
   --epf: #9ec5f4; --epf-bg: #184f95; --non: #c3c2b7; --non-bg: #2c2c2a;
 }
@@ -91,6 +91,8 @@ label.f { display: inline-flex; gap: 6px; align-items: center; color: var(--ink-
 .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--ink-2); margin: 4px 0 8px; }
 .legend span { display: inline-flex; align-items: center; gap: 6px; }
 .legend i { width: 14px; height: 3px; border-radius: 2px; display: inline-block; }
+.legend i.dash { height: 0; border-top: 2px dashed var(--s4); border-radius: 0; background: none; }
+i.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
 .legend button { border: 0; background: none; color: var(--muted); cursor: pointer; padding: 0 2px; font: inherit; }
 .chartbox { position: relative; }
 .chartbox svg { display: block; width: 100%; height: auto; overflow: visible; }
@@ -131,6 +133,16 @@ td.name .a { color: var(--muted); font-size: 12px; }
 .badge.isl { color: var(--ink-2); background: var(--wash); border: 1px solid var(--border); font-weight: 500; }
 .rank { color: var(--muted); font-variant-numeric: tabular-nums; }
 .spark { display: block; }
+.hold { display: grid; grid-template-columns: 3fr 2fr; gap: 24px; margin-top: 12px; }
+.hold h3 { font-size: 13px; margin: 0 0 8px; color: var(--ink-2); font-weight: 600; }
+.hold .bar { grid-template-columns: minmax(0, 260px) 1fr 52px; cursor: default; }
+.hold .bar:hover { background: none; }
+.hold .bar .n small { display: block; color: var(--muted); font-size: 11px; }
+.hold .split .bar { grid-template-columns: minmax(0, 150px) 1fr 52px; }
+.hold .split + h3 { margin-top: 14px; }
+.ext { color: var(--s1); text-decoration: none; font-size: 12px; }
+.ext:hover { text-decoration: underline; }
+@media (max-width: 900px) { .hold { grid-template-columns: minmax(0, 1fr); } .hold .bar { grid-template-columns: minmax(0, 150px) 1fr 52px; } }
 .note { color: var(--muted); font-size: 12px; margin-top: 16px; line-height: 1.6; }
 .cmp { border: 1px solid var(--border); background: none; border-radius: 6px; color: var(--ink-2); font: inherit; font-size: 12px; padding: 2px 8px; cursor: pointer; }
 .cmp[aria-pressed="true"] { border-color: var(--s1); color: var(--s1); font-weight: 600; }
@@ -152,12 +164,16 @@ td.name .a { color: var(--muted); font-size: 12px; }
   <header>
     <div>
       <h1>Public Series Fund Dashboard</h1>
-      <p class="sub">Public Mutual unit trusts in the "Public" series (excludes PB and Public e-Series), split by EPF eligibility.</p>
+      <p class="sub" id="subtitle"></p>
     </div>
     <div class="meta" id="meta"></div>
   </header>
 
   <div class="filters">
+    <div class="seg" id="schemeSeg" role="group" aria-label="Fund type">
+      <button data-v="ut" aria-pressed="true">Unit trust</button>
+      <button data-v="prs" aria-pressed="false">PRS</button>
+    </div>
     <div class="seg" id="epfSeg" role="group" aria-label="EPF eligibility">
       <button data-v="all" aria-pressed="true">All funds</button>
       <button data-v="epf" aria-pressed="false">EPF qualified</button>
@@ -180,12 +196,12 @@ td.name .a { color: var(--muted); font-size: 12px; }
 
   <section class="grid2">
     <div class="card">
-      <h2>Top 10 — EPF qualified</h2>
+      <h2 id="titleA">Top 10 — EPF qualified</h2>
       <p class="hint" id="hintEpf"></p>
       <div class="bars" id="topEpf"></div>
     </div>
     <div class="card">
-      <h2>Top 10 — Non-EPF</h2>
+      <h2 id="titleB">Top 10 — Non-EPF</h2>
       <p class="hint" id="hintNon"></p>
       <div class="bars" id="topNon"></div>
     </div>
@@ -198,16 +214,43 @@ td.name .a { color: var(--muted); font-size: 12px; }
           <h2 id="chartTitle">Price chart</h2>
           <p class="hint" id="chartHint" style="margin:0">Click a fund to chart it. Use "Compare" in the table to add up to 3 funds.</p>
         </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <select id="bench" aria-label="Benchmark index"></select>
         <div class="seg" id="rangeSeg" role="group" aria-label="Chart range">
           <button data-v="12" aria-pressed="false">1Y</button>
           <button data-v="36" aria-pressed="false">3Y</button>
           <button data-v="60" aria-pressed="true">5Y</button>
+        </div>
         </div>
       </div>
       <div class="legend" id="legend"></div>
       <div class="chartbox" id="chartbox"><div class="tip" id="tip"></div></div>
     </div>
     <div class="card detail" id="detail"></div>
+  </section>
+
+  <section class="card" id="holdings" style="margin-bottom:16px"></section>
+
+  <section class="card" id="world" style="margin-bottom:16px">
+    <div class="chart-head">
+      <div>
+        <h2>World markets — major indices</h2>
+        <p class="hint" id="worldHint" style="margin:0"></p>
+      </div>
+      <div class="seg" id="irangeSeg" role="group" aria-label="Index chart range">
+        <button data-v="12" aria-pressed="true">1Y</button>
+        <button data-v="36" aria-pressed="false">3Y</button>
+        <button data-v="60" aria-pressed="false">5Y</button>
+      </div>
+    </div>
+    <div class="legend" id="ilegend"></div>
+    <div class="chartbox" id="ichart"><div class="tip" id="itip"></div></div>
+    <div class="tablewrap" style="margin-top:12px">
+      <table>
+        <thead><tr id="ihead"></tr></thead>
+        <tbody id="ibody"></tbody>
+      </table>
+    </div>
   </section>
 
   <section class="grid2">
@@ -243,11 +286,15 @@ td.name .a { color: var(--muted); font-size: 12px; }
   <p class="note">
     <b>How performance is calculated:</b> price return from NAV (net asset value per unit) published by Public Mutual, between the latest price date and the closest earlier pricing day. 3Y and 5Y are annualised. Distributions (dividends) are <b>not</b> added back, so income-paying funds look lower than their total return — check the fund's distribution policy in the detail panel.
     "Region" and "theme" are inferred from the fund name plus Public Mutual's mandate tag (Local / Foreign / Mix); check the fund's Product Highlights Sheet for the actual asset allocation.
-    EPF eligibility comes from Public Mutual's Fund Explorer. Past performance is not indicative of future performance; this is not investment advice.
+    EPF eligibility comes from Public Mutual's Fund Explorer. Holdings come from each fund's latest annual or semi-annual report, so they can be several months old.
+    Prices refresh automatically every day at 12:00 pm Malaysia time; the update usually appears within 30 minutes.
+    World index levels come from Yahoo Finance in each market's own currency, so comparing them with ringgit-priced funds also reflects currency moves. Past performance is not indicative of future performance; this is not investment advice.
   </p>
 </div>
 
 <script src="data/funds.js"></script>
+<script src="data/holdings.js"></script>
+<script src="data/indices.js"></script>
 <script>
 (() => {
   const D = window.FUND_DATA;
@@ -262,9 +309,8 @@ td.name .a { color: var(--muted); font-size: 12px; }
     { k: '3Y', label: '3 years p.a.', months: 36, ann: 3 },
     { k: '5Y', label: '5 years p.a.', months: 60, ann: 5 },
   ];
-  const dates = D.dates.map(s => new Date(s + 'T00:00:00'));
-  const last = dates.length - 1;
-  const priceDate = new Date(D.priceDate + 'T00:00:00');
+  const H = (window.FUND_HOLDINGS || {}).funds || {};
+  let S, dates, last, priceDate, funds; // the active scheme (unit trust or PRS)
 
   const shiftMonths = (d, n) => {
     const t = new Date(d.getFullYear(), d.getMonth() - n, 1);
@@ -278,49 +324,81 @@ td.name .a { color: var(--muted); font-size: 12px; }
     }
     return -1;
   };
-  for (const p of PERIODS) {
-    p.idx = anchorIdx(p.ytd ? new Date(priceDate.getFullYear() - 1, 11, 31) : shiftMonths(priceDate, p.months));
+  function useScheme(key) {
+    S = D.schemes[key];
+    dates = S.dates.map(s => new Date(s + 'T00:00:00'));
+    last = dates.length - 1;
+    priceDate = new Date(S.priceDate + 'T00:00:00');
+    for (const p of PERIODS) {
+      p.idx = anchorIdx(p.ytd ? new Date(priceDate.getFullYear() - 1, 11, 31) : shiftMonths(priceDate, p.months));
+    }
+    funds = S.funds.map(f => {
+      const ret = {};
+      for (const p of PERIODS) {
+        const a = p.idx >= 0 ? f.history[p.idx] : null, b = f.nav;
+        if (a == null || !a) { ret[p.k] = null; continue; }
+        let r = b / a - 1;
+        if (p.ann) r = Math.pow(b / a, 1 / p.ann) - 1;
+        ret[p.k] = r * 100;
+      }
+      return { ...f, ret, dayPct: parseFloat(f.changePct) };
+    });
   }
 
-  const funds = D.funds.map(f => {
-    const ret = {};
-    for (const p of PERIODS) {
-      const a = p.idx >= 0 ? f.history[p.idx] : null, b = f.nav;
-      if (a == null || !a) { ret[p.k] = null; continue; }
-      let r = b / a - 1;
-      if (p.ann) r = Math.pow(b / a, 1 / p.ann) - 1;
-      ret[p.k] = r * 100;
-    }
-    return { ...f, ret, dayPct: parseFloat(f.changePct) };
-  });
-
   // ---------- state ----------
-  const st = { epf: 'all', period: '1Y', cat: 'all', region: 'all', shariah: 'all', q: '', sort: null, dir: -1, sel: null, cmp: [], range: 60 };
-  try { const s = JSON.parse(localStorage.getItem('psfd') || '{}'); Object.assign(st, { epf: s.epf || st.epf, period: s.period || st.period, range: s.range || st.range }); } catch (e) {}
-  const save = () => { try { localStorage.setItem('psfd', JSON.stringify({ epf: st.epf, period: st.period, range: st.range })); } catch (e) {} };
+  const st = { bench: '', idxSel: ['^KLSE', '^GSPC', 'URTH'], irange: 12, scheme: 'ut', epf: 'all', period: '1Y', cat: 'all', region: 'all', shariah: 'all', q: '', sort: null, dir: -1, sel: null, cmp: [], range: 60 };
+  try { const s = JSON.parse(localStorage.getItem('psfd') || '{}'); Object.assign(st, { bench: s.bench || '', idxSel: Array.isArray(s.idxSel) ? s.idxSel : st.idxSel, irange: s.irange || st.irange, scheme: D.schemes[s.scheme] ? s.scheme : st.scheme, epf: s.epf || st.epf, period: s.period || st.period, range: s.range || st.range }); } catch (e) {}
+  const save = () => { try { localStorage.setItem('psfd', JSON.stringify({ bench: st.bench, idxSel: st.idxSel, irange: st.irange, scheme: st.scheme, epf: st.epf, period: st.period, range: st.range })); } catch (e) {} };
+  useScheme(st.scheme);
 
   const $ = id => document.getElementById(id);
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const fmtPct = (v, d = 2) => v == null || isNaN(v) ? '—' : (v > 0 ? '+' : '') + v.toFixed(d) + '%';
   const cls = v => v == null || isNaN(v) ? 'na' : v > 0 ? 'up' : v < 0 ? 'down' : '';
   const fmtDate = d => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-  const titleCase = s => s.toLowerCase().replace(/\b([a-z])/g, m => m.toUpperCase()).replace(/\bU\.s\./g, 'U.S.').replace(/\bEsg\b/g, 'ESG').replace(/\bReits\b/g, 'REITs').replace(/ - Class ([a-z])/i, (m, c) => ' – Class ' + c.toUpperCase());
+  const titleCase = s => s.toLowerCase().replace(/\b([a-z])/g, m => m.toUpperCase()).replace(/\bU\.s\./g, 'U.S.').replace(/\bEsg\b/g, 'ESG').replace(/\bReits\b/g, 'REITs').replace(/\bPrs\b/g, 'PRS').replace(/ - Class ([a-z])/i, (m, c) => ' – Class ' + c.toUpperCase());
   const periodOf = k => PERIODS.find(p => p.k === k);
 
-  // ---------- controls ----------
-  $('meta').innerHTML = `Price date <b>${fmtDate(priceDate)}</b><br>Data refreshed ${esc(D.generated.replace('T', ' '))}<br>Source: <a href="${esc(D.source)}" target="_blank" rel="noopener">publicmutual.com.my</a>`;
-  $('period').innerHTML = PERIODS.map(p => `<option value="${p.k}">${p.label}</option>`).join('');
-  const uniq = key => [...new Set(funds.map(f => f[key]))].sort();
-  $('cat').innerHTML = '<option value="all">All asset classes</option>' + uniq('category').map(c => `<option>${esc(c)}</option>`).join('');
-  $('region').innerHTML = '<option value="all">All regions</option>' + uniq('region').map(c => `<option>${esc(c)}</option>`).join('');
+  // The GitHub Actions refresh runs daily at 04:00 UTC (12:00 noon Malaysia time).
+  const nextRefresh = () => {
+    const n = new Date(), t = new Date(Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate(), 4));
+    if (t <= n) t.setUTCDate(t.getUTCDate() + 1);
+    return t.toLocaleString('en-GB', { timeZone: 'Asia/Kuala_Lumpur', weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true }) + ' MYT';
+  };
 
-  const bindSeg = (id, key, cast = v => v) => {
+  // ---------- controls ----------
+  function renderMeta() {
+    $('meta').innerHTML = `Price date <b>${fmtDate(priceDate)}</b> · next refresh <b>${nextRefresh()}</b><br>Data refreshed ${esc(D.generated.replace('T', ' '))} · prices update daily at 12:00 pm MYT<br>Source: <a href="${esc(S.source)}" target="_blank" rel="noopener">publicmutual.com.my</a>`;
+  }
+  $('period').innerHTML = PERIODS.map(p => `<option value="${p.k}">${p.label}</option>`).join('');
+  function fillSelects() {
+    const uniq = key => [...new Set(funds.map(f => f[key]))].sort();
+    $('cat').innerHTML = '<option value="all">All asset classes</option>' + uniq('category').map(c => `<option>${esc(c)}</option>`).join('');
+    $('region').innerHTML = '<option value="all">All regions</option>' + uniq('region').map(c => `<option>${esc(c)}</option>`).join('');
+    $('cat').value = st.cat; $('region').value = st.region;
+    const prs = st.scheme === 'prs';
+    $('epfSeg').hidden = prs;
+    $('titleA').textContent = prs ? 'Top PRS funds — Conventional' : 'Top 10 — EPF qualified';
+    $('titleB').textContent = prs ? 'Top PRS funds — Islamic' : 'Top 10 — Non-EPF';
+    $('subtitle').textContent = prs
+      ? 'Public Mutual Private Retirement Scheme (PRS) funds. EPF eligibility does not apply to PRS, so funds are split into conventional and Islamic.'
+      : 'Public Mutual unit trusts in the "Public" series (excludes PB and Public e-Series), split by EPF eligibility.';
+  }
+
+  const bindSeg = (id, key, cast = v => v, onChange) => {
     const el = $(id);
     const sync = () => el.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(cast(b.dataset.v) === st[key])));
-    el.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; st[key] = cast(b.dataset.v); sync(); save(); render(); });
+    el.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; st[key] = cast(b.dataset.v); sync(); onChange?.(); save(); render(); });
     sync();
   };
+  bindSeg('schemeSeg', 'scheme', v => v, () => {
+    useScheme(st.scheme);
+    Object.assign(st, { cat: 'all', region: 'all', sort: null });
+    pickDefault();
+    fillSelects();
+  });
   bindSeg('epfSeg', 'epf');
+  bindSeg('irangeSeg', 'irange', Number);
   bindSeg('rangeSeg', 'range', Number);
   $('period').value = st.period;
   $('period').onchange = e => { st.period = e.target.value; st.sort = null; save(); render(); };
@@ -330,7 +408,7 @@ td.name .a { color: var(--muted); font-size: 12px; }
   $('q').oninput = e => { st.q = e.target.value.trim().toUpperCase(); render(); };
 
   const filtered = (ignoreEpf = false) => funds.filter(f =>
-    (ignoreEpf || st.epf === 'all' || (st.epf === 'epf' ? f.epf === true : f.epf !== true)) &&
+    (ignoreEpf || st.scheme === 'prs' || st.epf === 'all' || (st.epf === 'epf' ? f.epf === true : f.epf !== true)) &&
     (st.cat === 'all' || f.category === st.cat) &&
     (st.region === 'all' || f.region === st.region) &&
     (st.shariah === 'all' || (st.shariah === 'isl' ? f.islamic : !f.islamic)) &&
@@ -346,9 +424,10 @@ td.name .a { color: var(--muted); font-size: 12px; }
     const med = vals.length ? (vals.length % 2 ? vals[(vals.length - 1) / 2] : (vals[vals.length / 2 - 1] + vals[vals.length / 2]) / 2) : null;
     const pos = vals.filter(v => v > 0).length;
     const best = sorted[0];
-    const epfN = list.filter(f => f.epf === true).length;
+    const epfN = list.filter(f => f.epf === true).length, islN = list.filter(f => f.islamic).length;
+    const split = st.scheme === 'prs' ? `${list.length - islN} conventional · ${islN} Islamic` : `${epfN} EPF qualified · ${list.length - epfN} non-EPF`;
     $('kpis').innerHTML = `
-      <div class="card kpi"><div class="k">Funds shown</div><div class="v">${list.length}</div><div class="d">${epfN} EPF qualified · ${list.length - epfN} non-EPF</div></div>
+      <div class="card kpi"><div class="k">Funds shown</div><div class="v">${list.length}</div><div class="d">${split}</div></div>
       <div class="card kpi"><div class="k">Top performer · ${periodOf(k).label}</div><div class="v ${cls(best?.ret[k])}">${best ? fmtPct(best.ret[k]) : '—'}</div><div class="d" title="${best ? esc(best.name) : ''}">${best ? esc(best.abbr) + ' · ' + esc(titleCase(best.name)) : 'No data'}</div></div>
       <div class="card kpi"><div class="k">Median return · ${periodOf(k).label}</div><div class="v ${cls(med)}">${fmtPct(med)}</div><div class="d">across ${vals.length} funds with history</div></div>
       <div class="card kpi"><div class="k">Funds in positive territory</div><div class="v">${vals.length ? Math.round(pos / vals.length * 100) + '%' : '—'}</div><div class="d">${pos} of ${vals.length} funds · ${periodOf(k).label}</div></div>`;
@@ -379,12 +458,14 @@ td.name .a { color: var(--muted); font-size: 12px; }
   function renderTops() {
     const k = st.period, base = filtered(true).filter(f => f.ret[k] != null);
     const row = f => ({ abbr: f.abbr, v: f.ret[k], sub: titleCase(f.name).replace(/^Public /, ''), title: f.name });
-    const epf = byPeriod(base.filter(f => f.epf === true), k).slice(0, 10).map(row);
-    const non = byPeriod(base.filter(f => f.epf !== true), k).slice(0, 10).map(row);
+    const prs = st.scheme === 'prs';
+    const inA = prs ? f => !f.islamic : f => f.epf === true;
+    const a = byPeriod(base.filter(inA), k).slice(0, 10).map(row);
+    const b = byPeriod(base.filter(f => !inA(f)), k).slice(0, 10).map(row);
     const h = `Return over ${periodOf(k).label.toLowerCase()} · click a bar to chart it`;
     $('hintEpf').textContent = h; $('hintNon').textContent = h;
-    diverging($('topEpf'), epf, 'No EPF-qualified funds match the filters.');
-    diverging($('topNon'), non, 'No non-EPF funds match the filters.');
+    diverging($('topEpf'), a, prs ? 'No conventional PRS funds match the filters.' : 'No EPF-qualified funds match the filters.');
+    diverging($('topNon'), b, prs ? 'No Islamic PRS funds match the filters.' : 'No non-EPF funds match the filters.');
   }
 
   // ---------- Table ----------
@@ -430,7 +511,7 @@ td.name .a { color: var(--muted); font-size: 12px; }
       <td class="num">${f.currency} ${f.nav.toFixed(4)}</td>
       <td class="num ${cls(f.dayPct)}">${fmtPct(f.dayPct)}</td>
       <td>${fmtDate(new Date(f.date + 'T00:00:00'))}</td>
-      <td>${f.epf === true ? '<span class="badge epf">EPF</span>' : '<span class="badge non">Non-EPF</span>'}</td>
+      <td>${st.scheme === 'prs' ? '<span class="badge non">PRS</span>' : f.epf === true ? '<span class="badge epf">EPF</span>' : '<span class="badge non">Non-EPF</span>'}</td>
       <td>${esc(f.category)}</td>
       <td>${esc(f.region)}</td>
       <td>${esc(f.theme)}</td>
@@ -470,11 +551,11 @@ td.name .a { color: var(--muted); font-size: 12px; }
     const f = funds.find(x => x.abbr === st.sel);
     if (!f) { $('detail').innerHTML = '<h2>Fund details</h2><p class="hint">Select a fund from the table or the Top 10 lists.</p>'; return; }
     $('detail').innerHTML = `<h2>${esc(titleCase(f.name))}</h2>
-      <div class="hint" style="margin:0">${esc(f.abbr)} · Fund code ${esc(f.code)}</div>
+      <div class="hint" style="margin:0">${esc(f.abbr)} · Fund code ${esc(f.code)} · <a class="ext" href="https://www.publicmutual.com.my/Fund-Overview?sc=${encodeURIComponent(f.code)}" target="_blank" rel="noopener">Fund page ↗</a></div>
       <div style="margin-top:10px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><span style="font-size:24px;font-weight:600">${f.currency} ${f.nav.toFixed(4)}</span><span class="${cls(f.dayPct)}">${fmtPct(f.dayPct)} (${f.change >= 0 ? '+' : ''}${f.change.toFixed(4)})</span></div>
       <div class="hint" style="margin:2px 0 0">Price as at ${fmtDate(new Date(f.date + 'T00:00:00'))}</div>
       <dl>
-        <dt>EPF</dt><dd>${f.epf === true ? '<span class="badge epf">EPF qualified</span>' : '<span class="badge non">Not EPF qualified</span>'}</dd>
+        <dt>EPF</dt><dd>${st.scheme === 'prs' ? '<span class="badge non">PRS — not applicable</span>' : f.epf === true ? '<span class="badge epf">EPF qualified</span>' : '<span class="badge non">Not EPF qualified</span>'}</dd>
         <dt>Asset class</dt><dd>${esc(f.category)}${f.islamic ? ' · Islamic' : ''}</dd>
         <dt>Invests in</dt><dd>${esc(f.region)} · ${esc(f.mandate)}</dd>
         <dt>Theme</dt><dd>${esc(f.theme)}</dd>
@@ -484,71 +565,169 @@ td.name .a { color: var(--muted); font-size: 12px; }
       <div class="rets">${PERIODS.map(p => `<div><div class="k">${p.k}${p.ann ? ' p.a.' : ''}</div><div class="v ${cls(f.ret[p.k])}">${fmtPct(f.ret[p.k])}</div></div>`).join('')}</div>`;
   }
 
-  // ---------- Line chart ----------
-  const SERIES = ['var(--s1)', 'var(--s2)', 'var(--s3)'];
-  function renderChart() {
-    const box = $('chartbox'), tip = $('tip');
-    box.querySelectorAll('svg, .empty').forEach(n => n.remove());
-    const sel = st.cmp.map(a => funds.find(f => f.abbr === a)).filter(Boolean);
-    const start = Math.max(0, anchorIdx(shiftMonths(priceDate, st.range)) >= 0 ? anchorIdx(shiftMonths(priceDate, st.range)) : 0);
-    const idx = [];
-    for (let i = start; i <= last; i++) idx.push(i);
-    const indexed = sel.length > 1;
-    $('chartTitle').textContent = sel.length === 0 ? 'Price chart' : indexed ? 'Performance comparison (indexed to 100)' : `${sel[0].abbr} price history (NAV)`;
-    $('chartHint').textContent = indexed ? 'Each fund rebased to 100 at its first point in range, so growth is comparable. Month-end NAVs.' : 'Month-end NAV per unit. Add funds with "Compare" in the table (max 3).';
-    $('legend').innerHTML = sel.map((f, i) => `<span><i style="background:${SERIES[i]}"></i>${esc(f.abbr)}${sel.length > 1 ? `<button data-rm="${esc(f.abbr)}" aria-label="Remove ${esc(f.abbr)}">✕</button>` : ''}</span>`).join('');
-    if (!sel.length) { box.insertAdjacentHTML('beforeend', '<div class="empty">Select a fund to see its chart.</div>'); return; }
+  // ---------- Holdings ----------
+  function pctBars(rows, label) {
+    const max = Math.max(...rows.map(r => r[1]), 0.01);
+    return rows.map(([k, v, sub]) => `<div class="bar"><span class="n" title="${esc(k)}">${label ? label(k) : esc(k)}${sub ? `<small>${esc(sub)}</small>` : ''}</span><span class="t"><span class="f c" style="left:0;width:${v / max * 100}%"></span></span><span class="v">${v.toFixed(1)}%</span></div>`).join('');
+  }
+  function renderHoldings() {
+    const f = funds.find(x => x.abbr === st.sel), el = $('holdings');
+    if (!f) { el.innerHTML = '<h2>Top holdings</h2><p class="hint">Select a fund to see what it holds.</p>'; return; }
+    const h = H[f.abbr];
+    const head = `<h2>What ${esc(f.abbr)} holds — top 10 holdings</h2>`;
+    if (!h || !h.count) {
+      el.innerHTML = head + `<p class="hint">${f.category === 'Money Market'
+        ? 'Money market funds invest in deposits with financial institutions and short-term money market instruments; the fund report does not list individual holdings.'
+        : 'Holdings are not available for this fund yet.'}${h ? ` <a class="ext" href="${esc(h.url)}" target="_blank" rel="noopener">Fund reports ↗</a>` : ''}</p>`;
+      return;
+    }
+    const asAt = fmtDate(new Date(h.asAt + 'T00:00:00'));
+    const topSum = h.top.reduce((a, x) => a + x.pct, 0);
+    const split = (title, rows) => rows.length > 1 || (rows.length === 1 && rows[0][0] !== 'Unspecified')
+      ? `<h3>${title}</h3><div class="bars split">${pctBars(rows.slice(0, 8))}</div>` : '';
+    el.innerHTML = head + `
+      <p class="hint" style="margin:0">From Public Mutual's ${esc(h.report.toLowerCase())} report as at <b>${asAt}</b> · ${h.count} holdings in total · top 10 = ${topSum.toFixed(1)}% of the fund · <a class="ext" href="${esc(h.url)}" target="_blank" rel="noopener">Fund reports ↗</a></p>
+      <div class="hold">
+        <div><h3>Largest holdings (% of fund)</h3><div class="bars">${pctBars(h.top.map(x => [x.name, x.pct, [x.country, x.sector].filter(Boolean).join(' · ')]))}</div></div>
+        <div>${split('By country', h.byCountry)}${split('By sector', h.bySector)}${split('By asset type', h.byAsset)}</div>
+      </div>`;
+  }
 
-    const series = sel.map(f => {
-      const raw = idx.map(i => f.history[i]);
-      const b = raw.find(v => v != null);
-      return raw.map(v => v == null ? null : indexed ? v / b * 100 : v);
-    });
-    const all = series.flat().filter(v => v != null);
+  // ---------- Line charts ----------
+  const SERIES = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)'];
+  const W_IDX = (window.WORLD_INDICES || {}).indices || [];
+  W_IDX.forEach(ix => { ix.d = ix.dates.map(s => new Date(s + 'T00:00:00')); });
+  // Index close on or before a date (within 10 days), else null.
+  const idxAt = (ix, d) => {
+    for (let i = ix.d.length - 1; i >= 0; i--) if (ix.d[i] <= d) return (d - ix.d[i]) / 864e5 <= 10 ? ix.closes[i] : null;
+    return null;
+  };
+
+  // Draws lines over a shared date axis. series: [{label, color, dash, values, tip(j)}]
+  function drawLines(box, tip, xDates, series, indexed, label) {
+    box.querySelectorAll('svg, .empty').forEach(n => n.remove());
+    const all = series.flatMap(s => s.values).filter(v => v != null);
+    if (!all.length) { box.insertAdjacentHTML('beforeend', '<div class="empty">No data in this range.</div>'); return; }
     let lo = Math.min(...all), hi = Math.max(...all);
     const pad = (hi - lo) * 0.08 || hi * 0.05 || 1; lo -= pad; hi += pad;
-    const W = Math.max(320, box.clientWidth), H = 300, m = { l: 52, r: 16, t: 10, b: 28 };
+    const n = xDates.length;
+    const W = Math.max(320, box.clientWidth), H = 300, m = { l: 56, r: 16, t: 10, b: 28 };
     const iw = W - m.l - m.r, ih = H - m.t - m.b;
-    const x = j => m.l + j / (idx.length - 1 || 1) * iw;
+    const x = j => m.l + j / (n - 1 || 1) * iw;
     const y = v => m.t + (1 - (v - lo) / (hi - lo)) * ih;
     const step = (() => { const r = (hi - lo) / 4, p = Math.pow(10, Math.floor(Math.log10(r))); return [1, 2, 2.5, 5, 10].map(s => s * p).find(s => s >= r); })();
     const ticks = []; for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) ticks.push(v);
-    const dec = indexed ? 0 : step < 0.01 ? 3 : step < 0.1 ? 2 : 2;
-    const xt = []; const every = Math.ceil(idx.length / (W < 500 ? 4 : 7));
-    for (let j = 0; j < idx.length; j += every) xt.push(j);
-    let svg = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="${esc($('chartTitle').textContent)}">`;
-    ticks.forEach(v => { svg += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(v)}" y2="${y(v)}" stroke="var(--grid)" stroke-width="1"/><text x="${m.l - 8}" y="${y(v) + 4}" text-anchor="end">${v.toFixed(dec)}</text>`; });
+    const dec = indexed || step >= 1 ? 0 : step < 0.01 ? 3 : 2;
+    const xt = []; const every = Math.ceil(n / (W < 500 ? 4 : 7));
+    for (let j = 0; j < n; j += every) xt.push(j);
+    let svg = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="${esc(label)}">`;
+    ticks.forEach(v => { svg += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(v)}" y2="${y(v)}" stroke="var(--grid)" stroke-width="1"/><text x="${m.l - 8}" y="${y(v) + 4}" text-anchor="end">${v.toLocaleString('en-US', { maximumFractionDigits: dec, minimumFractionDigits: dec })}</text>`; });
     if (indexed && lo < 100 && hi > 100) svg += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(100)}" y2="${y(100)}" stroke="var(--axis)" stroke-dasharray="3 3"/>`;
     svg += `<line x1="${m.l}" x2="${W - m.r}" y1="${H - m.b}" y2="${H - m.b}" stroke="var(--axis)"/>`;
-    xt.forEach(j => { svg += `<text x="${x(j)}" y="${H - 8}" text-anchor="middle">${dates[idx[j]].toLocaleDateString('en-GB', { month: 'short', year: '2-digit' })}</text>`; });
-    series.forEach((s, i) => {
-      // Bridge isolated missing snapshots (holiday-thin source data) instead of breaking the line.
+    xt.forEach(j => { svg += `<text x="${x(j)}" y="${H - 8}" text-anchor="middle">${xDates[j].toLocaleDateString('en-GB', { month: 'short', year: '2-digit' })}</text>`; });
+    series.forEach(s => {
+      // Bridge isolated missing points (holiday-thin source data) instead of breaking the line.
       let d = '';
-      s.forEach((v, j) => { if (v != null) d += (d ? 'L' : 'M') + x(j).toFixed(1) + ',' + y(v).toFixed(1); });
-      svg += `<path d="${d}" fill="none" stroke="${SERIES[i]}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+      s.values.forEach((v, j) => { if (v != null) d += (d ? 'L' : 'M') + x(j).toFixed(1) + ',' + y(v).toFixed(1); });
+      svg += `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2"${s.dash ? ' stroke-dasharray="6 4"' : ''} stroke-linejoin="round" stroke-linecap="round"/>`;
     });
-    svg += `<line id="xh" y1="${m.t}" y2="${H - m.b}" stroke="var(--axis)" stroke-width="1" style="display:none"/><g id="dots"></g><rect x="${m.l}" y="${m.t}" width="${iw}" height="${ih}" fill="transparent" id="hit"/></svg>`;
+    svg += `<line class="xh" y1="${m.t}" y2="${H - m.b}" stroke="var(--axis)" stroke-width="1" style="display:none"/><g class="dots"></g><rect class="hit" x="${m.l}" y="${m.t}" width="${iw}" height="${ih}" fill="transparent"/></svg>`;
     box.insertAdjacentHTML('beforeend', svg);
-    const svgEl = box.querySelector('svg'), xh = svgEl.querySelector('#xh'), dots = svgEl.querySelector('#dots');
-    const move = ev => {
+    const svgEl = box.querySelector('svg'), xh = svgEl.querySelector('.xh'), dots = svgEl.querySelector('.dots'), hit = svgEl.querySelector('.hit');
+    hit.addEventListener('pointermove', ev => {
       const r = svgEl.getBoundingClientRect(), px = (ev.clientX - r.left) * (W / r.width);
-      const j = Math.max(0, Math.min(idx.length - 1, Math.round((px - m.l) / iw * (idx.length - 1))));
+      const j = Math.max(0, Math.min(n - 1, Math.round((px - m.l) / iw * (n - 1))));
       xh.setAttribute('x1', x(j)); xh.setAttribute('x2', x(j)); xh.style.display = '';
-      dots.innerHTML = series.map((s, i) => s[j] == null ? '' : `<circle cx="${x(j)}" cy="${y(s[j])}" r="4" fill="${SERIES[i]}" stroke="var(--surface)" stroke-width="2"/>`).join('');
-      tip.innerHTML = `<div class="h">${fmtDate(dates[idx[j]])}</div>` + sel.map((f, i) => {
-        const v = series[i][j], nav = f.history[idx[j]];
-        return `<div class="r"><span><i style="background:${SERIES[i]}"></i>${esc(f.abbr)}</span><b>${v == null ? '—' : indexed ? v.toFixed(1) : 'RM ' + nav.toFixed(4)}</b></div>`;
-      }).join('');
+      dots.innerHTML = series.map(s => s.values[j] == null ? '' : `<circle cx="${x(j)}" cy="${y(s.values[j])}" r="4" fill="${s.color}" stroke="var(--surface)" stroke-width="2"/>`).join('');
+      tip.innerHTML = `<div class="h">${fmtDate(xDates[j])}</div>` + series.map(s =>
+        `<div class="r"><span><i style="background:${s.color}"></i>${esc(s.label)}</span><b>${s.values[j] == null ? '—' : s.tip(j)}</b></div>`).join('');
       tip.style.display = 'block';
       const bx = box.getBoundingClientRect(), tx = x(j) * (r.width / W);
       tip.style.left = Math.min(bx.width - tip.offsetWidth - 4, Math.max(0, tx + (tx > bx.width / 2 ? -tip.offsetWidth - 12 : 12))) + 'px';
       tip.style.top = '12px';
-    };
-    svgEl.querySelector('#hit').addEventListener('pointermove', move);
-    svgEl.querySelector('#hit').addEventListener('pointerleave', () => { tip.style.display = 'none'; xh.style.display = 'none'; dots.innerHTML = ''; });
+    });
+    hit.addEventListener('pointerleave', () => { tip.style.display = 'none'; xh.style.display = 'none'; dots.innerHTML = ''; });
+  }
+
+  // Fund chart, optionally with a world index overlaid as a benchmark.
+  function renderChart() {
+    const box = $('chartbox');
+    const sel = st.cmp.map(a => funds.find(f => f.abbr === a)).filter(Boolean);
+    const bench = W_IDX.find(ix => ix.symbol === st.bench);
+    const a0 = anchorIdx(shiftMonths(priceDate, st.range));
+    const idx = [];
+    for (let i = Math.max(0, a0); i <= last; i++) idx.push(i);
+    const xDates = idx.map(i => dates[i]);
+    const indexed = sel.length > 1 || (sel.length > 0 && !!bench);
+    $('chartTitle').textContent = sel.length === 0 ? 'Price chart' : indexed ? 'Performance comparison (indexed to 100)' : `${sel[0].abbr} price history (NAV)`;
+    $('chartHint').textContent = indexed
+      ? 'Each line rebased to 100 at its first point in range, so growth is comparable. Fund NAVs are month-end; the index is in its own currency.'
+      : 'Month-end NAV per unit. Add funds with "Compare" in the table (max 3), or pick a benchmark index.';
+    $('legend').innerHTML = sel.map((f, i) => `<span><i style="background:${SERIES[i]}"></i>${esc(f.abbr)}${sel.length > 1 ? `<button data-rm="${esc(f.abbr)}" aria-label="Remove ${esc(f.abbr)}">✕</button>` : ''}</span>`).join('')
+      + (bench && sel.length ? `<span><i class="dash"></i>${esc(bench.name)} (index)</span>` : '');
+    if (!sel.length) { box.querySelectorAll('svg, .empty').forEach(n => n.remove()); box.insertAdjacentHTML('beforeend', '<div class="empty">Select a fund to see its chart.</div>'); return; }
+    const rebase = raw => { const b = raw.find(v => v != null); return raw.map(v => v == null ? null : v / b * 100); };
+    const series = sel.map((f, i) => {
+      const raw = idx.map(k => f.history[k]);
+      const values = indexed ? rebase(raw) : raw;
+      return { label: f.abbr, color: SERIES[i], values, tip: j => indexed ? values[j].toFixed(1) : 'RM ' + raw[j].toFixed(4) };
+    });
+    if (bench) {
+      const values = rebase(xDates.map(d => idxAt(bench, d)));
+      series.push({ label: bench.name, color: 'var(--s4)', dash: true, values, tip: j => values[j].toFixed(1) });
+    }
+    drawLines(box, $('tip'), xDates, series, indexed, $('chartTitle').textContent);
   }
   $('legend').addEventListener('click', e => { const b = e.target.closest('[data-rm]'); if (!b) return; st.cmp = st.cmp.filter(a => a !== b.dataset.rm); if (st.sel === b.dataset.rm) st.sel = st.cmp[st.cmp.length - 1] || null; render(); });
-  let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(renderChart, 150); });
+
+  // ---------- World indices ----------
+  function renderIndices() {
+    if (!W_IDX.length) { $('world').hidden = true; return; }
+    const k = st.period, p = periodOf(k);
+    const rows = W_IDX.slice().sort((a, b) => (b.ret[k] ?? -Infinity) - (a.ret[k] ?? -Infinity));
+    $('worldHint').textContent = `${W_IDX.length} indices · ranked by ${p.label.toLowerCase()} return (same period as the funds) · click a row to add it to the chart (max 4) · levels in local currency · source: Yahoo Finance`;
+    const heads = ['#', 'Index', 'Market', 'Level', 'Day', ...PERIODS.map(q => q.k + (q.ann ? ' p.a.' : '')), 'Date'];
+    $('ihead').innerHTML = heads.map((h, i) => `<th class="${i === 0 || (i >= 3 && i < 5 + PERIODS.length) ? 'num' : ''}${PERIODS[i - 5] && PERIODS[i - 5].k === k ? ' on' : ''}">${h}</th>`).join('');
+    $('ibody').innerHTML = rows.map((ix, r) => {
+      const on = st.idxSel.indexOf(ix.symbol);
+      return `<tr data-ix="${esc(ix.symbol)}" class="${on >= 0 ? 'sel' : ''}">
+        <td class="num rank">${ix.ret[k] == null ? '—' : r + 1}</td>
+        <td>${on >= 0 ? `<i class="dot" style="background:${SERIES[on]}"></i>` : ''}<b>${esc(ix.name)}</b></td>
+        <td>${esc(ix.market)}</td>
+        <td class="num">${ix.last.toLocaleString('en-US', { maximumFractionDigits: 2 })} <span class="na">${esc(ix.currency || '')}</span></td>
+        <td class="num ${cls(ix.dayPct)}">${fmtPct(ix.dayPct)}</td>
+        ${PERIODS.map(q => `<td class="num ${cls(ix.ret[q.k])}"${q.k === k ? ' style="font-weight:600"' : ''}>${fmtPct(ix.ret[q.k])}</td>`).join('')}
+        <td>${fmtDate(new Date(ix.date + 'T00:00:00'))}</td>
+      </tr>`;
+    }).join('');
+
+    const sel = st.idxSel.map(s => W_IDX.find(ix => ix.symbol === s)).filter(Boolean);
+    $('ilegend').innerHTML = sel.map((ix, i) => `<span><i style="background:${SERIES[i]}"></i>${esc(ix.name)}<button data-irm="${esc(ix.symbol)}" aria-label="Remove ${esc(ix.name)}">✕</button></span>`).join('');
+    const box = $('ichart');
+    if (!sel.length) { box.querySelectorAll('svg, .empty').forEach(n => n.remove()); box.insertAdjacentHTML('beforeend', '<div class="empty">Click an index in the table to chart it.</div>'); return; }
+    const base = sel[0], from = shiftMonths(base.d[base.d.length - 1], st.irange);
+    const xDates = base.d.filter(d => d >= from);
+    const series = sel.map((ix, i) => {
+      const raw = xDates.map(d => idxAt(ix, d)), b = raw.find(v => v != null);
+      const values = raw.map(v => v == null ? null : v / b * 100);
+      return { label: ix.name, color: SERIES[i], values, tip: j => `${values[j].toFixed(1)} <span class="na">(${raw[j].toLocaleString('en-US', { maximumFractionDigits: 2 })})</span>` };
+    });
+    drawLines(box, $('itip'), xDates, series, true, 'World indices, indexed to 100');
+  }
+  $('ibody').addEventListener('click', e => {
+    const tr = e.target.closest('tr[data-ix]'); if (!tr) return;
+    const s = tr.dataset.ix, i = st.idxSel.indexOf(s);
+    if (i >= 0) st.idxSel.splice(i, 1); else { st.idxSel.push(s); if (st.idxSel.length > 4) st.idxSel.shift(); }
+    save(); renderIndices();
+  });
+  $('ilegend').addEventListener('click', e => { const b = e.target.closest('[data-irm]'); if (!b) return; st.idxSel = st.idxSel.filter(s => s !== b.dataset.irm); save(); renderIndices(); });
+  $('bench').innerHTML = '<option value="">No benchmark</option>' + ['Asia', 'Americas', 'Europe', 'Global', 'Commodity'].map(g => {
+    const opts = W_IDX.filter(ix => ix.group === g);
+    return opts.length ? `<optgroup label="${g}">${opts.map(ix => `<option value="${esc(ix.symbol)}">${esc(ix.name)}</option>`).join('')}</optgroup>` : '';
+  }).join('');
+  $('bench').value = st.bench;
+  $('bench').onchange = e => { st.bench = e.target.value; save(); renderChart(); };
+  let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { renderChart(); renderIndices(); }, 150); });
 
   function render() {
     const list = filtered();
@@ -558,13 +737,21 @@ td.name .a { color: var(--muted); font-size: 12px; }
     counts($('byCat'), list, 'category', 'cat');
     counts($('byTheme'), list, 'theme');
     renderTable(list);
+    renderMeta();
     renderDetail();
+    renderHoldings();
     renderChart();
+    renderIndices();
   }
 
   // Default selection: the top performer for the chosen period.
-  const top = byPeriod(funds.filter(f => f.ret[st.period] != null), st.period)[0];
-  if (top) { st.sel = top.abbr; st.cmp = [top.abbr]; }
+  function pickDefault() {
+    const top = byPeriod(funds.filter(f => f.ret[st.period] != null), st.period)[0];
+    st.sel = top ? top.abbr : null;
+    st.cmp = top ? [top.abbr] : [];
+  }
+  pickDefault();
+  fillSelects();
   render();
 })();
 </script>

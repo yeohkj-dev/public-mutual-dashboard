@@ -2,7 +2,7 @@ name: Update fund data
 
 on:
   schedule:
-    - cron: "0 3 * * 1-5"  # 11:00 Malaysia time, Mon–Fri
+    - cron: "0 4 * * *"  # 12:00 noon Malaysia time (UTC+8), every day
   workflow_dispatch:
 
 permissions:
@@ -16,11 +16,17 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: python scripts/fetch_data.py
+      - run: pip install pymupdf
+      - name: Prices (unit trust + PRS)
+        run: python scripts/fetch_data.py
+      - name: Holdings (only re-parses reports that changed)
+        run: python scripts/fetch_holdings.py
+      - name: World indices
+        run: python scripts/fetch_indices.py
       - name: Commit if changed
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898+github-actions[bot]@users.noreply.github.com"
-          git add data/funds.js
+          git add data/funds.js data/holdings.js data/indices.js
           git diff --cached --quiet || git commit -m "Update fund data $(date -u +%F)"
           git push
