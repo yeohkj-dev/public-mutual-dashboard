@@ -54,6 +54,7 @@ python scripts/fetch_indices.py
 
 - Performance is **price return** from NAV; distributions are not added back, so income-paying funds look lower than their total return.
 - 3Y and 5Y figures are annualised.
+- The drop alert flags top 10 EPF funds (by 1-year return) more than 10% below their highest month-end price in the last 5 years. The true peak may be higher, and dividend payouts also lower the price.
 - Holdings come from the latest annual or semi-annual report, so they can be several months old. Money market reports don't list individual holdings.
 - Region and theme are inferred from the fund name and Public Mutual's Local / Foreign / Mix mandate tag.
 - Not investment advice. Past performance is not indicative of future performance.

@@ -143,6 +143,15 @@ td.name .a { color: var(--muted); font-size: 12px; }
 .ext { color: var(--s1); text-decoration: none; font-size: 12px; }
 .ext:hover { text-decoration: underline; }
 @media (max-width: 900px) { .hold { grid-template-columns: minmax(0, 1fr); } .hold .bar { grid-template-columns: minmax(0, 150px) 1fr 52px; } }
+.alert { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid #ec835a; border-radius: 12px; padding: 12px 16px; margin-bottom: 16px; }
+.alert[hidden] { display: none; }
+.alert.clear { border-left-color: var(--axis); color: var(--ink-2); }
+.alert h2 { margin-bottom: 2px; }
+.alert ul { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 2px; }
+.alert li button { all: unset; box-sizing: border-box; display: flex; flex-wrap: wrap; gap: 0 10px; width: 100%; padding: 4px 6px; border-radius: 6px; cursor: pointer; }
+.alert li button:hover, .alert li button:focus-visible { background: var(--wash); }
+.alert .drop { color: var(--down-text); font-weight: 600; font-variant-numeric: tabular-nums; }
+.alert small { color: var(--muted); font-size: 12px; }
 .note { color: var(--muted); font-size: 12px; margin-top: 16px; line-height: 1.6; }
 .cmp { border: 1px solid var(--border); background: none; border-radius: 6px; color: var(--ink-2); font: inherit; font-size: 12px; padding: 2px 8px; cursor: pointer; }
 .cmp[aria-pressed="true"] { border-color: var(--s1); color: var(--s1); font-weight: 600; }
@@ -168,6 +177,8 @@ td.name .a { color: var(--muted); font-size: 12px; }
     </div>
     <div class="meta" id="meta"></div>
   </header>
+
+  <section class="alert" id="alert" role="status" hidden></section>
 
   <div class="filters">
     <div class="seg" id="schemeSeg" role="group" aria-label="Fund type">
@@ -286,6 +297,7 @@ td.name .a { color: var(--muted); font-size: 12px; }
   <p class="note">
     <b>How performance is calculated:</b> price return from NAV (net asset value per unit) published by Public Mutual, between the latest price date and the closest earlier pricing day. 3Y and 5Y are annualised. Distributions (dividends) are <b>not</b> added back, so income-paying funds look lower than their total return — check the fund's distribution policy in the detail panel.
     "Region" and "theme" are inferred from the fund name plus Public Mutual's mandate tag (Local / Foreign / Mix); check the fund's Product Highlights Sheet for the actual asset allocation.
+    "From high" compares the latest price with the highest month-end price in the last 5 years, so the true peak may have been higher, and dividend payouts also lower the price.
     EPF eligibility comes from Public Mutual's Fund Explorer. Holdings come from each fund's latest annual or semi-annual report, so they can be several months old.
     Prices refresh automatically every day at 12:00 pm Malaysia time; the update usually appears within 30 minutes.
     World index levels come from Yahoo Finance in each market's own currency, so comparing them with ringgit-priced funds also reflects currency moves. Past performance is not indicative of future performance; this is not investment advice.
@@ -309,6 +321,7 @@ td.name .a { color: var(--muted); font-size: 12px; }
     { k: '3Y', label: '3 years p.a.', months: 36, ann: 3 },
     { k: '5Y', label: '5 years p.a.', months: 60, ann: 5 },
   ];
+  const ALERT_DROP = 10, ALERT_TOP = 10; // flag top EPF funds this % below their high
   const H = (window.FUND_HOLDINGS || {}).funds || {};
   let S, dates, last, priceDate, funds; // the active scheme (unit trust or PRS)
 
@@ -341,7 +354,10 @@ td.name .a { color: var(--muted); font-size: 12px; }
         if (p.ann) r = Math.pow(b / a, 1 / p.ann) - 1;
         ret[p.k] = r * 100;
       }
-      return { ...f, ret, dayPct: parseFloat(f.changePct) };
+      const seen = f.history.filter(Boolean);
+      const high = Math.max(f.nav, ...seen);
+      const highIdx = f.history.lastIndexOf(high);
+      return { ...f, ret, dayPct: parseFloat(f.changePct), high, highDate: highIdx >= 0 ? dates[highIdx] : priceDate, dropPct: (f.nav / high - 1) * 100 };
     });
   }
 
@@ -349,6 +365,8 @@ td.name .a { color: var(--muted); font-size: 12px; }
   const st = { bench: '', idxSel: ['^KLSE', '^GSPC', 'URTH'], irange: 12, scheme: 'ut', epf: 'all', period: '1Y', cat: 'all', region: 'all', shariah: 'all', q: '', sort: null, dir: -1, sel: null, cmp: [], range: 60 };
   try { const s = JSON.parse(localStorage.getItem('psfd') || '{}'); Object.assign(st, { bench: s.bench || '', idxSel: Array.isArray(s.idxSel) ? s.idxSel : st.idxSel, irange: s.irange || st.irange, scheme: D.schemes[s.scheme] ? s.scheme : st.scheme, epf: s.epf || st.epf, period: s.period || st.period, range: s.range || st.range }); } catch (e) {}
   const save = () => { try { localStorage.setItem('psfd', JSON.stringify({ bench: st.bench, idxSel: st.idxSel, irange: st.irange, scheme: st.scheme, epf: st.epf, period: st.period, range: st.range })); } catch (e) {} };
+  useScheme('ut');
+  const utFunds = funds;
   useScheme(st.scheme);
 
   const $ = id => document.getElementById(id);
@@ -474,6 +492,7 @@ td.name .a { color: var(--muted); font-size: 12px; }
     { k: 'name', label: 'Fund name / abbreviation', s: f => f.name },
     { k: 'nav', label: 'Price (NAV)', num: true, s: f => f.nav },
     { k: 'day', label: 'Daily chg', num: true, s: f => f.dayPct },
+    { k: 'drop', label: 'From high', num: true, s: f => f.dropPct },
     { k: 'date', label: 'Price date' },
     { k: 'epf', label: 'EPF', s: f => f.epf === true ? 1 : 0 },
     { k: 'category', label: 'Asset class', s: f => f.category },
@@ -510,6 +529,7 @@ td.name .a { color: var(--muted); font-size: 12px; }
       <td class="name">${esc(titleCase(f.name))}<div class="a">${esc(f.abbr)}${f.islamic ? ' · <span class="badge isl">Islamic</span>' : ''}</div></td>
       <td class="num">${f.currency} ${f.nav.toFixed(4)}</td>
       <td class="num ${cls(f.dayPct)}">${fmtPct(f.dayPct)}</td>
+      <td class="num ${f.dropPct <= -ALERT_DROP ? 'down' : ''}">${f.dropPct <= -ALERT_DROP ? '⚠ ' : ''}${fmtPct(f.dropPct, 1)}</td>
       <td>${fmtDate(new Date(f.date + 'T00:00:00'))}</td>
       <td>${st.scheme === 'prs' ? '<span class="badge non">PRS</span>' : f.epf === true ? '<span class="badge epf">EPF</span>' : '<span class="badge non">Non-EPF</span>'}</td>
       <td>${esc(f.category)}</td>
@@ -544,6 +564,26 @@ td.name .a { color: var(--muted); font-size: 12px; }
     const fb = e.target.closest('.bar[data-filter]');
     if (fb) { const id = fb.dataset.filter; st[id] = fb.dataset.v; $(id).value = fb.dataset.v; render(); }
   });
+  // ---------- Drop alert ----------
+  // Worked out from the unit trust list, so it stays visible in the PRS view too.
+  function renderAlert() {
+    const top = byPeriod(utFunds.filter(f => f.epf === true && f.ret['1Y'] != null), '1Y').slice(0, ALERT_TOP);
+    const hits = top.filter(f => f.dropPct <= -ALERT_DROP).sort((a, b) => a.dropPct - b.dropPct);
+    const el = $('alert');
+    el.hidden = false;
+    el.classList.toggle('clear', !hits.length);
+    if (!hits.length) { el.textContent = `No top ${ALERT_TOP} EPF fund is more than ${ALERT_DROP}% below its high.`; return; }
+    el.innerHTML = `<h2>⚠ ${hits.length} of the top ${ALERT_TOP} EPF funds ${hits.length === 1 ? 'is' : 'are'} more than ${ALERT_DROP}% below ${hits.length === 1 ? 'its' : 'their'} high</h2>
+      <p class="hint" style="margin:0">Top ${ALERT_TOP} EPF funds by 1-year return · high = highest month-end price in the last 5 years · a drop can also come from a dividend payout · click a fund to review it</p>
+      <ul>${hits.map(f => `<li><button data-alert="${esc(f.abbr)}"><span class="drop">${fmtPct(f.dropPct, 1)}</span><span><b>${esc(f.abbr)}</b> ${esc(titleCase(f.name))}</span><small>now ${f.nav.toFixed(4)} · high ${f.high.toFixed(4)} on ${fmtDate(f.highDate)}</small></button></li>`).join('')}</ul>`;
+  }
+  $('alert').addEventListener('click', e => {
+    const b = e.target.closest('[data-alert]'); if (!b) return;
+    if (st.scheme !== 'ut') document.querySelector('#schemeSeg [data-v="ut"]').click();
+    select(b.dataset.alert);
+    $('chartbox').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+
   function select(abbr) { st.sel = abbr; if (!st.cmp.includes(abbr)) st.cmp = st.cmp.length ? [...st.cmp.filter(a => a !== abbr), abbr].slice(-3) : [abbr]; render(); }
 
   // ---------- Detail ----------
@@ -559,6 +599,7 @@ td.name .a { color: var(--muted); font-size: 12px; }
         <dt>Asset class</dt><dd>${esc(f.category)}${f.islamic ? ' · Islamic' : ''}</dd>
         <dt>Invests in</dt><dd>${esc(f.region)} · ${esc(f.mandate)}</dd>
         <dt>Theme</dt><dd>${esc(f.theme)}</dd>
+        <dt>From high</dt><dd class="${f.dropPct <= -ALERT_DROP ? 'down' : ''}">${f.dropPct <= -ALERT_DROP ? '⚠ ' : ''}${fmtPct(f.dropPct, 1)} (high ${f.high.toFixed(4)}, ${fmtDate(f.highDate)})</dd>
         <dt>Risk level</dt><dd>${f.risk ? f.risk + ' / 5' : '—'}</dd>
         <dt>Distribution</dt><dd>${f.distribution ? esc(titleCase(f.distribution)) : '—'}</dd>
       </dl>
@@ -752,6 +793,7 @@ td.name .a { color: var(--muted); font-size: 12px; }
   }
   pickDefault();
   fillSelects();
+  renderAlert();
   render();
 })();
 </script>
