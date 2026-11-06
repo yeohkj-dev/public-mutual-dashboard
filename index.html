@@ -299,7 +299,7 @@ td.name .a { color: var(--muted); font-size: 12px; }
     "Region" and "theme" are inferred from the fund name plus Public Mutual's mandate tag (Local / Foreign / Mix); check the fund's Product Highlights Sheet for the actual asset allocation.
     "From high" compares the latest price with the highest month-end price in the last 5 years, so the true peak may have been higher, and dividend payouts also lower the price.
     EPF eligibility comes from Public Mutual's Fund Explorer. Holdings come from each fund's latest annual or semi-annual report, so they can be several months old.
-    Prices refresh automatically every day at 12:00 pm Malaysia time; the update usually appears within 30 minutes.
+    Data refreshes automatically every day on GitHub (scheduled for 12:00 pm Malaysia time; GitHub usually runs it a little late, so new data appears around 1 pm).
     World index levels come from Yahoo Finance in each market's own currency, so comparing them with ringgit-priced funds also reflects currency moves. Past performance is not indicative of future performance; this is not investment advice.
   </p>
 </div>
@@ -377,16 +377,23 @@ td.name .a { color: var(--muted); font-size: 12px; }
   const titleCase = s => s.toLowerCase().replace(/\b([a-z])/g, m => m.toUpperCase()).replace(/\bU\.s\./g, 'U.S.').replace(/\bEsg\b/g, 'ESG').replace(/\bReits\b/g, 'REITs').replace(/\bPrs\b/g, 'PRS').replace(/ - Class ([a-z])/i, (m, c) => ' – Class ' + c.toUpperCase());
   const periodOf = k => PERIODS.find(p => p.k === k);
 
-  // The GitHub Actions refresh runs daily at 04:00 UTC (12:00 noon Malaysia time).
+  // The GitHub Actions refresh is scheduled for 04:00 UTC (12:00 noon Malaysia time); GitHub
+  // usually starts it 30-50 minutes late, so new data lands around 05:05 UTC (about 1 pm MYT).
+  const myt = { timeZone: 'Asia/Kuala_Lumpur' };
   const nextRefresh = () => {
-    const n = new Date(), t = new Date(Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate(), 4));
+    const n = new Date(), t = new Date(Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate(), 5, 5));
     if (t <= n) t.setUTCDate(t.getUTCDate() + 1);
-    return t.toLocaleString('en-GB', { timeZone: 'Asia/Kuala_Lumpur', weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true }) + ' MYT';
+    return t.toLocaleString('en-GB', { ...myt, weekday: 'short', day: 'numeric', month: 'short' }) + ', about 1 pm MYT';
+  };
+  // Older data files carry a timestamp without a timezone (it was UTC on GitHub's servers).
+  const fmtGenerated = s => {
+    const d = new Date(/[zZ]|[+-]\d\d:\d\d$/.test(s) ? s : s + 'Z');
+    return isNaN(d) ? s : d.toLocaleString('en-GB', { ...myt, day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }) + ' MYT';
   };
 
   // ---------- controls ----------
   function renderMeta() {
-    $('meta').innerHTML = `Price date <b>${fmtDate(priceDate)}</b> · next refresh <b>${nextRefresh()}</b><br>Data refreshed ${esc(D.generated.replace('T', ' '))} · prices update daily at 12:00 pm MYT<br>Source: <a href="${esc(S.source)}" target="_blank" rel="noopener">publicmutual.com.my</a>`;
+    $('meta').innerHTML = `Price date <b>${fmtDate(priceDate)}</b> · next refresh <b>${nextRefresh()}</b><br>Data refreshed ${esc(fmtGenerated(D.generated))} · updates automatically every day<br>Source: <a href="${esc(S.source)}" target="_blank" rel="noopener">publicmutual.com.my</a>`;
   }
   $('period').innerHTML = PERIODS.map(p => `<option value="${p.k}">${p.label}</option>`).join('');
   function fillSelects() {

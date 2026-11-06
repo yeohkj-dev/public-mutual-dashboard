@@ -120,17 +120,31 @@ def build(symbol, name, market, group):
     }
 
 
+def load_previous():
+    if not OUT.exists():
+        return {}
+    body = OUT.read_text(encoding="utf-8")
+    data = json.loads(body[body.index("{"):].rstrip().rstrip(";"))
+    return {ix["symbol"]: ix for ix in data.get("indices", [])}
+
+
 def main():
-    out = []
+    previous = load_previous()
+    out, fresh = [], 0
     for symbol, name, market, group in INDICES:
         try:
             out.append(build(symbol, name, market, group))
+            fresh += 1
             print(f"{name}: {out[-1]['last']} ({out[-1]['date']})")
-        except Exception as e:  # noqa: BLE001 - skip one bad symbol, keep the rest
-            print(f"{name} ({symbol}) failed: {e}", file=sys.stderr)
+        except Exception as e:  # noqa: BLE001 - one bad symbol keeps its previous data
+            print(f"{name} ({symbol}) failed, keeping previous: {e}", file=sys.stderr)
+            if symbol in previous:
+                out.append(previous[symbol])
         time.sleep(0.3)
+    if not fresh:
+        sys.exit("No index could be fetched; leaving data/indices.js unchanged.")
     payload = {
-        "generated": datetime.now().isoformat(timespec="seconds"),
+        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "source": "Yahoo Finance",
         "indices": out,
     }

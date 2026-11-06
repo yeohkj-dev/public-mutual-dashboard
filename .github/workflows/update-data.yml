@@ -1,16 +1,25 @@
 name: Update fund data
 
+# Runs on GitHub's servers every day. It does not depend on Claude or any
+# local computer: GitHub starts it, fetches the data, commits it, and the
+# GitHub Pages site picks up the new files automatically.
+
 on:
   schedule:
-    - cron: "0 4 * * *"  # 12:00 noon Malaysia time (UTC+8), every day
-  workflow_dispatch:
+    - cron: "0 4 * * *"  # 12:00 noon Malaysia time (UTC+8), every day; GitHub may start it ~30-50 min late
+  workflow_dispatch:      # "Run workflow" button on the Actions tab, for a manual refresh
 
 permissions:
   contents: write
 
+concurrency:
+  group: update-data
+  cancel-in-progress: false
+
 jobs:
   update:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -19,14 +28,20 @@ jobs:
       - run: pip install pymupdf
       - name: Prices (unit trust + PRS)
         run: python scripts/fetch_data.py
+      # Holdings and indices are optional: if either source has a bad day the
+      # step keeps the previous data and the price update still goes out.
       - name: Holdings (only re-parses reports that changed)
+        continue-on-error: true
         run: python scripts/fetch_holdings.py
       - name: World indices
+        continue-on-error: true
         run: python scripts/fetch_indices.py
       - name: Commit if changed
+        if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898+github-actions[bot]@users.noreply.github.com"
           git add data/funds.js data/holdings.js data/indices.js
           git diff --cached --quiet || git commit -m "Update fund data $(date -u +%F)"
+          git pull --rebase origin main
           git push

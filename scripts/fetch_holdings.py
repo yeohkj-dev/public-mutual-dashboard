@@ -17,7 +17,7 @@ import json
 import re
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pymupdf
@@ -205,21 +205,31 @@ def main():
                 if abbr in existing["funds"]:
                     result[abbr] = existing["funds"][abbr]
                 continue
-            reports = c.api(page, f"{api}/GetFundReportBySchemeCode?schemeCode={code}")
-            reports = [r for r in reports if r.get("E_DocId")]
-            if not reports:
-                print(f"{abbr}: no report", file=sys.stderr)
-                continue
-            latest = max(reports, key=lambda r: datetime.strptime(r["Date"], "%d/%m/%Y"))
             prev = existing["funds"].get(abbr)
-            if prev and prev.get("docId") == latest["E_DocId"] and not only:
-                result[abbr] = prev
-                continue
-            doc = c.api(page, f"{api}/DownloadDocByDocId?docId={latest['E_DocId']}")
+            # Any failure for one fund keeps its previous holdings, so a bad
+            # day on the website never wipes data that was already good.
             try:
+                reports = c.api(page, f"{api}/GetFundReportBySchemeCode?schemeCode={code}")
+                reports = [r for r in reports if r.get("E_DocId")]
+                if not reports:
+                    print(f"{abbr}: no report", file=sys.stderr)
+                    if prev:
+                        result[abbr] = prev
+                    continue
+                latest = max(reports, key=lambda r: datetime.strptime(r["Date"], "%d/%m/%Y"))
+                if prev and prev.get("docId") == latest["E_DocId"] and not only:
+                    result[abbr] = prev
+                    continue
+                doc = c.api(page, f"{api}/DownloadDocByDocId?docId={latest['E_DocId']}")
                 holdings, as_at = parse_report(base64.b64decode(doc["FileBytes"]))
-            except Exception as e:  # noqa: BLE001 - one bad PDF shouldn't stop the run
-                print(f"{abbr}: parse failed: {e}", file=sys.stderr)
+            except Exception as e:  # noqa: BLE001 - one bad fund shouldn't stop the run
+                print(f"{abbr}: failed, keeping previous holdings: {e}", file=sys.stderr)
+                if prev:
+                    result[abbr] = prev
+                continue
+            if not holdings and prev and prev.get("count"):
+                print(f"{abbr}: new report gave no holdings (layout change?), keeping previous", file=sys.stderr)
+                result[abbr] = prev
                 continue
             report_date = datetime.strptime(latest["Date"], "%d/%m/%Y")
             if as_at:
@@ -235,7 +245,7 @@ def main():
             print(f"{abbr}: {latest['Type']} {as_at} - {len(holdings)} holdings, {total:.1f}% of NAV")
             time.sleep(0.3)
 
-    payload = {"generated": datetime.now().isoformat(timespec="seconds"), "funds": result}
+    payload = {"generated": datetime.now(timezone.utc).isoformat(timespec="seconds"), "funds": result}
     OUT.write_text(PREFIX + json.dumps(payload, ensure_ascii=False, separators=(",", ":")) + ";\n", encoding="utf-8")
     print(f"Wrote {OUT} ({len(result)} funds)")
 

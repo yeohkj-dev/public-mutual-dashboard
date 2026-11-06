@@ -15,7 +15,7 @@ import re
 import sys
 import time
 import urllib.request
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 BASE = "https://www.publicmutual.com.my"
@@ -236,7 +236,7 @@ def main():
     c = Client()
     explorer = {f["FundAbbr"]: f for f in c.explorer()}
     payload = {
-        "generated": datetime.now().isoformat(timespec="seconds"),
+        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "schemes": {k: collect(c, s, explorer, args.years) for k, s in SCHEMES.items()},
     }
     OUT.parent.mkdir(parents=True, exist_ok=True)

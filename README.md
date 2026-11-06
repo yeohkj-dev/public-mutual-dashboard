@@ -2,6 +2,10 @@
 
 Live: <https://yeohkj-dev.github.io/public-mutual-dashboard/>
 
+Updates itself every day on GitHub (around 1 pm Malaysia time) — no Claude account or computer needed.
+
+**Claude / AI assistants: read [CLAUDE.md](CLAUDE.md) first** — it explains how everything works and how to continue.
+
 A static dashboard for Public Mutual funds:
 
 - **Unit trust:** the "Public" series (excludes PB and Public e-Series), split into **EPF qualified** and **non-EPF**.
