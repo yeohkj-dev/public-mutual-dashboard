@@ -25,7 +25,8 @@ It covers:
 
 `.github/workflows/update-data.yml` runs on GitHub's servers every day:
 
-- Scheduled for 04:00 UTC (12:00 noon Malaysia time). GitHub usually starts it 30–50 minutes late; new data is live around 1 pm MYT.
+- Scheduled for 03:23 UTC (11:23 am Malaysia time); new data is usually live around 12 pm MYT. A backup run at 06:23 UTC (2:23 pm MYT) does the update only if the main run hasn't published that day's data yet (it compares the `generated` date in `data/funds.js` with today's UTC date).
+- Why not on the hour: GitHub queues scheduled jobs and the top of the hour is busiest. With the old 04:00 UTC schedule, runs normally started 40–50 minutes late, and on 21 Nov 2026 the job waited 2 h 46 min in GitHub's queue. GitHub's status page showed no incident; it's normal congestion on free runners, so the off-peak minute plus the backup run is the mitigation. Measure delays by comparing each run's `created_at` with its job's `started_at` (`gh api repos/<repo>/actions/runs/<id>/jobs`).
 - It runs the three scripts, commits changed `data/*.js` files as `github-actions[bot]`, and GitHub Pages redeploys.
 - It uses the repo's built-in `GITHUB_TOKEN`. It does **not** depend on any Claude account, API key, or the owner's computer.
 - Holdings and indices steps are `continue-on-error`, so a bad day on those sources never blocks the price update. Each script keeps previous data for anything it fails to fetch.

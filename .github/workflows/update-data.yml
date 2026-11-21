@@ -4,9 +4,14 @@ name: Update fund data
 # local computer: GitHub starts it, fetches the data, commits it, and the
 # GitHub Pages site picks up the new files automatically.
 
+# Times are UTC; Malaysia is UTC+8. Jobs set exactly on the hour wait longest
+# in GitHub's queue (on 21 Nov 2026 the 04:00 job waited 2 h 46 min), so the
+# schedule uses an off-peak minute, and a backup run fills in if the first
+# one hasn't published that day.
 on:
   schedule:
-    - cron: "0 4 * * *"  # 12:00 noon Malaysia time (UTC+8), every day; GitHub may start it ~30-50 min late
+    - cron: "23 3 * * *"  # main run: 11:23 am MYT, every day
+    - cron: "23 6 * * *"  # backup: 2:23 pm MYT, skipped if today's data is already in
   workflow_dispatch:      # "Run workflow" button on the Actions tab, for a manual refresh
 
 permissions:
@@ -22,22 +27,37 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+      - name: Skip backup run if today's data is already published
+        id: check
+        run: |
+          generated=$(grep -o '"generated":"[0-9-]*' data/funds.js | head -1 | cut -d'"' -f4)
+          if [ "${{ github.event.schedule }}" = "23 6 * * *" ] && [ "$generated" = "$(date -u +%F)" ]; then
+            echo "Data for $generated is already published; backup run not needed."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/setup-python@v5
+        if: steps.check.outputs.run == 'true'
         with:
           python-version: "3.12"
       - run: pip install pymupdf
+        if: steps.check.outputs.run == 'true'
       - name: Prices (unit trust + PRS)
+        if: steps.check.outputs.run == 'true'
         run: python scripts/fetch_data.py
       # Holdings and indices are optional: if either source has a bad day the
       # step keeps the previous data and the price update still goes out.
       - name: Holdings (only re-parses reports that changed)
+        if: steps.check.outputs.run == 'true'
         continue-on-error: true
         run: python scripts/fetch_holdings.py
       - name: World indices
+        if: steps.check.outputs.run == 'true'
         continue-on-error: true
         run: python scripts/fetch_indices.py
       - name: Commit if changed
-        if: always()
+        if: always() && steps.check.outputs.run == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898+github-actions[bot]@users.noreply.github.com"

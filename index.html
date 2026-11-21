@@ -299,7 +299,7 @@ td.name .a { color: var(--muted); font-size: 12px; }
     "Region" and "theme" are inferred from the fund name plus Public Mutual's mandate tag (Local / Foreign / Mix); check the fund's Product Highlights Sheet for the actual asset allocation.
     "From high" compares the latest price with the highest month-end price in the last 5 years, so the true peak may have been higher, and dividend payouts also lower the price.
     EPF eligibility comes from Public Mutual's Fund Explorer. Holdings come from each fund's latest annual or semi-annual report, so they can be several months old.
-    Data refreshes automatically every day on GitHub (scheduled for 12:00 pm Malaysia time; GitHub usually runs it a little late, so new data appears around 1 pm).
+    Data refreshes automatically every day on GitHub, usually around 12 pm Malaysia time. If GitHub is busy, a backup run at 2:23 pm fills in, so the page is updated by about 3 pm at the latest.
     World index levels come from Yahoo Finance in each market's own currency, so comparing them with ringgit-priced funds also reflects currency moves. Past performance is not indicative of future performance; this is not investment advice.
   </p>
 </div>
@@ -377,13 +377,13 @@ td.name .a { color: var(--muted); font-size: 12px; }
   const titleCase = s => s.toLowerCase().replace(/\b([a-z])/g, m => m.toUpperCase()).replace(/\bU\.s\./g, 'U.S.').replace(/\bEsg\b/g, 'ESG').replace(/\bReits\b/g, 'REITs').replace(/\bPrs\b/g, 'PRS').replace(/ - Class ([a-z])/i, (m, c) => ' – Class ' + c.toUpperCase());
   const periodOf = k => PERIODS.find(p => p.k === k);
 
-  // The GitHub Actions refresh is scheduled for 04:00 UTC (12:00 noon Malaysia time); GitHub
-  // usually starts it 30-50 minutes late, so new data lands around 05:05 UTC (about 1 pm MYT).
+  // The GitHub Actions refresh is scheduled for 03:23 UTC (11:23 am Malaysia time), with a
+  // backup at 06:23 UTC; new data usually lands around 04:00 UTC (about 12 pm MYT).
   const myt = { timeZone: 'Asia/Kuala_Lumpur' };
   const nextRefresh = () => {
-    const n = new Date(), t = new Date(Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate(), 5, 5));
+    const n = new Date(), t = new Date(Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate(), 4, 0));
     if (t <= n) t.setUTCDate(t.getUTCDate() + 1);
-    return t.toLocaleString('en-GB', { ...myt, weekday: 'short', day: 'numeric', month: 'short' }) + ', about 1 pm MYT';
+    return t.toLocaleString('en-GB', { ...myt, weekday: 'short', day: 'numeric', month: 'short' }) + ', about 12 pm MYT';
   };
   // Older data files carry a timestamp without a timezone (it was UTC on GitHub's servers).
   const fmtGenerated = s => {

@@ -2,7 +2,7 @@
 
 Live: <https://yeohkj-dev.github.io/public-mutual-dashboard/>
 
-Updates itself every day on GitHub (around 1 pm Malaysia time) — no Claude account or computer needed.
+Updates itself every day on GitHub (around 12 pm Malaysia time, with a backup run at 2:23 pm) — no Claude account or computer needed.
 
 **Claude / AI assistants: read [CLAUDE.md](CLAUDE.md) first** — it explains how everything works and how to continue.
 
@@ -32,7 +32,7 @@ For every fund it shows the name, abbreviation, latest price (NAV) and price dat
 | `scripts/fetch_data.py` | Prices for unit trust + PRS (Python 3, stdlib only) |
 | `scripts/fetch_holdings.py` | Downloads each fund's latest report PDF and extracts holdings (needs `pymupdf`) |
 | `data/indices.js` / `scripts/fetch_indices.py` | World indices: level, returns, weekly closes for 5 years |
-| `.github/workflows/update-data.yml` | Runs all three scripts **every day at 12:00 noon Malaysia time** and commits the result |
+| `.github/workflows/update-data.yml` | Runs all three scripts **every day around 12 pm Malaysia time** (backup run at 2:23 pm) and commits the result |
 
 ## Refresh by hand
 
